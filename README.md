@@ -1,4 +1,4 @@
-# AI_editor_photo
+
 
 🤖 AI-Powered Virtual Try-On Telegram Bot
 <div align="center">
@@ -12,62 +12,64 @@ https://img.shields.io/badge/MediaPipe-0.10-red.svg
 Архитектура • Установка • Деплой • API
 
 </div>
-🎯 О продукте
+
+## 🎯 О продукте
 Virtual Try-On Bot — это enterprise-grade решение, позволяющее пользователям примерять одежду на свои фотографии в реальном времени через Telegram интерфейс. Система использует передовые технологии компьютерного зрения и машинного обучения для точной сегментации и реалистичного наложения одежды.
 
-✨ Ключевые возможности
-🔄 Автоматическая сегментация — точное определение контуров тела с помощью MediaPipe
+## ✨ Ключевые возможности
+- 🔄 Автоматическая сегментация — точное определение контуров тела с помощью MediaPipe
 
-🎯 Умное позиционирование — адаптивное размещение одежды с учетом позы пользователя
+- 🎯 Умное позиционирование — адаптивное размещение одежды с учетом позы пользователя
 
-⚡ Высокая производительность — обработка запросов за 2-5 секунд
+- ⚡ Высокая производительность — обработка запросов за 2-5 секунд
 
-🔒 Безопасность — end-to-end защита пользовательских данных
+- 🔒 Безопасность — end-to-end защита пользовательских данных
 
-📱 Multi-format поддержка — работа с JPG, PNG, WebP форматами
+- 📱 Multi-format поддержка — работа с JPG, PNG, WebP форматами
 
-🏗️ Архитектура
-Системная диаграмма
-text
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Telegram      │    │   Application    │    │   AI/ML         │
-│   Client        │◄──►│   Layer          │◄──►│   Services      │
-│                 │    │                  │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Bot           │    │   Business       │    │   MediaPipe     │
-│   Framework     │    │   Logic          │    │   Segmentation  │
-│   (Aiogram)     │    │   Engine         │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-Технологический стек
-Слой	Технологии	Назначение
-Presentation	Aiogram 2.25, Python-telegram-bot	Интерфейс взаимодействия
-Business Logic	Custom State Management, Validators	Обработка бизнес-процессов
-AI/ML Services	MediaPipe, OpenCV, NumPy	Компьютерное зрение и сегментация
-Infrastructure	Docker, GitHub Actions, Redis	Оркестрация и масштабирование
-🚀 Установка
-Предварительные требования
-Python 3.9+
+## 🏗️ Архитектура
 
-Telegram Bot Token от @BotFather
+### <img width="3051" height="1603" alt="deepseek_mermaid_20251107_9bfa32" src="https://github.com/user-attachments/assets/f75fb9e9-537a-4aff-807e-50acc8893262" />
 
-512MB+ свободной памяти
+## 🛠 Технологический стек
 
-🔒 Безопасность
-Data Protection
-🔐 Шифрование пользовательских данных в rest и transit
+### 📝 Core & Framework
+- **🐍 Python 3.9+** - Основной язык с поддержкой async/await
+- **🤖 Aiogram 2.25+** - Модерный асинхронный фреймворк для Telegram Bot API
+- **⚡ AsyncIO** - Нативная поддержка асинхронности в Python
+- **📋 Pydantic** - Валидация данных и управление конфигурацией
 
-🗑️ Автоматическое удаление обработанных изображений
+### 🧠 Artificial Intelligence
+- **👥 MediaPipe** - Real-time сегментация человека и детекция ключевых точек
+- **🖼️ OpenCV** - Компьютерное зрение и обработка изображений
+- **🔢 NumPy** - Вычислительные операции с многомерными массивами
+- **🖼️ Pillow** - Базовые операции с изображениями и форматами
 
-👁️ Отсутствие хранения персональной информации
+### 🚀 Infrastructure
+- **🐳 Docker & Docker Compose** - Контейнеризация и оркестрация
+- **🔧 GitHub Actions** - Непрерывная интеграция и доставка
+- **🗄️ Redis** - In-memory кэширование и управление состояниями
+- **🌐 AioHTTP** - Асинхронные HTTP запросы
 
-Compliance
-GDPR compliant architecture
+### 🧪 Testing & Quality
+- **✅ pytest** - Фреймворк для unit и integration тестов
+- **🎯 pytest-asyncio** - Поддержка асинхронного тестирования
+- **⚫ Black** - Автоматическое форматирование кода
+- **👀 flake8** - Линтинг и анализ кода
+- **🔍 mypy** - Статическая проверка типов
 
-Telegram Bot API compliance
+### 📦 Dependencies Management
+- **📋 pip** - Менеджер пакетов Python
+- **📁 requirements.txt** - Фиксация версий зависимостей
+- **🐍 venv** - Виртуальные окружения для изоляции
 
-Data minimization principles
+## 🚀 Быстрый старт
+
+```bash
+git clone https://github.com/your-username/telegram-tryon-bot.git
+cd telegram-tryon-bot
+cp .env.example .env
+# Отредактируйте .env файл
+pip install -r requirements.txt
+python bot.py
 
