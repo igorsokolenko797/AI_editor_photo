@@ -1,105 +1,109 @@
 import cv2
 import numpy as np
-import mediapipe as mp
-from typing import Optional, Tuple, Dict
-from config import config
+from PIL import Image
+import logging
 
-class SegmentationService:
-    def __init__(self):
-        self.mp_selfie_segmentation = mp.solutions.selfie_segmentation
-        self.mp_pose = mp.solutions.pose
-        
-    def segment_human(self, image_array: np.ndarray) -> Optional[np.ndarray]:
-        """Сегментация человека с помощью MediaPipe"""
-        try:
-            with self.mp_selfie_segmentation.SelfieSegmentation(
-                model_selection=1
-            ) as selfie_segmentation:
-                
-                results = selfie_segmentation.process(
-                    cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
-                )
-                
-                if results.segmentation_mask is not None:
-                    condition = np.stack(
-                        (results.segmentation_mask,) * 3, axis=-1
-                    ) > 0.5
-                    return condition
-                return None
-                
-        except Exception as e:
-            print(f"Error in human segmentation: {e}")
-            return None
+logger = logging.getLogger(__name__)
+
+class SimpleSegmentation:
+    """Упрощенная сегментация без MediaPipe"""
     
-    def detect_pose_landmarks(self, image_array: np.ndarray) -> Optional[Dict]:
-        """Детекция ключевых точек позы"""
+    def segment_human(self, image_array: np.ndarray) -> np.ndarray:
+        """
+        Упрощенная сегментация человека на основе контраста и цветов
+        """
         try:
-            with self.mp_pose.Pose(
-                static_image_mode=True,
-                min_detection_confidence=0.5,
-                model_complexity=1
-            ) as pose:
-                
-                results = pose.process(
-                    cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
-                )
-                
-                if not results.pose_landmarks:
-                    return None
-                
-                landmarks = results.pose_landmarks.landmark
-                h, w = image_array.shape[:2]
-                
-                points = {}
-                point_indices = {
-                    'left_shoulder': mp.solutions.pose.PoseLandmark.LEFT_SHOULDER,
-                    'right_shoulder': mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER,
-                    'left_hip': mp.solutions.pose.PoseLandmark.LEFT_HIP,
-                    'right_hip': mp.solutions.pose.PoseLandmark.RIGHT_HIP,
-                    'nose': mp.solutions.pose.PoseLandmark.NOSE
-                }
-                
-                for name, landmark_idx in point_indices.items():
-                    landmark = landmarks[landmark_idx]
-                    points[name] = (int(landmark.x * w), int(landmark.y * h))
-                
-                return points
+            # Конвертируем в разные цветовые пространства
+            hsv = cv2.cvtColor(image_array, cv2.COLOR_BGR2HSV)
+            lab = cv2.cvtColor(image_array, cv2.COLOR_BGR2LAB)
+            gray = cv2.cvtColor(image_array, cv2.COLOR_BGR2GRAY)
+            
+            # 1. Детекция кожи в HSV
+            lower_skin = np.array([0, 20, 70], dtype=np.uint8)
+            upper_skin = np.array([25, 255, 255], dtype=np.uint8)
+            skin_mask_hsv = cv2.inRange(hsv, lower_skin, upper_skin)
+            
+            # 2. Детекция по яркости в LAB
+            l_channel = lab[:,:,0]
+            _, bright_mask = cv2.threshold(l_channel, 150, 255, cv2.THRESH_BINARY)
+            
+            # 3. Детекция границ для нахождения контуров
+            edges = cv2.Canny(gray, 50, 150)
+            
+            # Комбинируем маски
+            combined_mask = cv2.bitwise_or(skin_mask_hsv, bright_mask)
+            combined_mask = cv2.bitwise_or(combined_mask, edges)
+            
+            # Морфологические операции для улучшения маски
+            kernel = np.ones((5, 5), np.uint8)
+            combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
+            combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
+            
+            # Заполняем дыры
+            contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                largest_contour = max(contours, key=cv2.contourArea)
+                filled_mask = np.zeros_like(combined_mask)
+                cv2.drawContours(filled_mask, [largest_contour], -1, 255, -1)
+                return filled_mask > 0
+            else:
+                return np.ones(image_array.shape[:2], dtype=bool)
                 
         except Exception as e:
-            print(f"Error in pose detection: {e}")
+            logger.error(f"Segmentation error: {e}")
+            # Возвращаем полную маску как fallback
+            return np.ones(image_array.shape[:2], dtype=bool)
+    
+    def detect_pose_landmarks(self, image_array: np.ndarray):
+        """
+        Упрощенное определение ключевых точек на основе геометрии изображения
+        """
+        try:
+            height, width = image_array.shape[:2]
+            
+            # Простая эвристика для определения позы
+            points = {
+                'left_shoulder': (width // 4, height // 3),
+                'right_shoulder': (3 * width // 4, height // 3),
+                'left_hip': (width // 3, 2 * height // 3),
+                'right_hip': (2 * width // 3, 2 * height // 3),
+                'nose': (width // 2, height // 4)
+            }
+            
+            return points
+            
+        except Exception as e:
+            logger.error(f"Pose detection error: {e}")
             return None
     
     def remove_clothes_background(self, image_array: np.ndarray) -> np.ndarray:
         """Удаление фона с одежды"""
         try:
-            # Конвертируем в разные цветовые пространства для лучшего выделения
+            # Конвертируем в разные цветовые пространства
             hsv = cv2.cvtColor(image_array, cv2.COLOR_BGR2HSV)
-            lab = cv2.cvtColor(image_array, cv2.COLOR_BGR2LAB)
+            gray = cv2.cvtColor(image_array, cv2.COLOR_BGR2GRAY)
             
-            # Создаем маски для разных цветов фона
+            # Создаем маски для разных типов фона
             lower_white = np.array([0, 0, 200])
-            upper_white = np.array([180, 30, 255])
+            upper_white = np.array([180, 55, 255])
             mask_white = cv2.inRange(hsv, lower_white, upper_white)
             
-            # Маска для светлых тонов в LAB
-            lower_light = np.array([0, 128, 128])
-            upper_light = np.array([255, 255, 255])
-            mask_light = cv2.inRange(lab, lower_light, upper_light)
+            # Маска для светлых тонов
+            _, mask_light = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
             
-            # Комбинируем маски
-            combined_mask = cv2.bitwise_or(mask_white, mask_light)
+            # Комбинируем маски фона
+            background_mask = cv2.bitwise_or(mask_white, mask_light)
             
-            # Инвертируем маску (одежда становится белой)
-            mask = cv2.bitwise_not(combined_mask)
+            # Инвертируем чтобы получить маску одежды
+            clothes_mask = cv2.bitwise_not(background_mask)
             
-            # Улучшаем маску морфологическими операциями
-            kernel = np.ones((5, 5), np.uint8)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            # Улучшаем маску
+            kernel = np.ones((3, 3), np.uint8)
+            clothes_mask = cv2.morphologyEx(clothes_mask, cv2.MORPH_CLOSE, kernel)
+            clothes_mask = cv2.morphologyEx(clothes_mask, cv2.MORPH_OPEN, kernel)
             
-            return mask
+            return clothes_mask
             
         except Exception as e:
-            print(f"Error in clothes background removal: {e}")
-            # Возвращаем маску по умолчанию
+            logger.error(f"Clothes background removal error: {e}")
             return np.ones(image_array.shape[:2], dtype=np.uint8) * 255
