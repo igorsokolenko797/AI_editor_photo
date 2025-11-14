@@ -5,6 +5,8 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.utils import executor
 
+from aiogram.utils.exceptions import TelegramAPIError
+
 from config import config
 from states.user_states import UserStates
 

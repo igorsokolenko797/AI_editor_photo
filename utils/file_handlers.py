@@ -5,24 +5,37 @@ import cv2
 import numpy as np
 from typing import Optional, Tuple
 from config import config
+import asyncio
 
 class FileHandler:
     @staticmethod
     async def download_telegram_file(bot, file_id: str) -> Optional[bytes]:
-        """Скачивание файла из Telegram"""
+        """Скачивание файла из Telegram с увеличенным таймаутом"""
         try:
             file = await bot.get_file(file_id)
             file_path = file.file_path
             
-            async with aiohttp.ClientSession() as session:
+            # Создаем сессию с увеличенным таймаутом
+            timeout = aiohttp.ClientTimeout(total=config.api.download_timeout)
+            connector = aiohttp.TCPConnector(limit=10)
+            
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
                 async with session.get(
-                    f'https://api.telegram.org/file/bot{config.bot.token}/{file_path}',
-                    timeout=aiohttp.ClientTimeout(total=config.api.request_timeout)
+                    f'https://api.telegram.org/file/bot{config.bot.token}/{file_path}'
                 ) as resp:
                     if resp.status == 200:
-                        return await resp.read()
+                        data = await resp.read()
+                        print(f"✅ Файл загружен, размер: {len(data)} байт")
+                        return data
+                    else:
+                        print(f"❌ Ошибка загрузки: {resp.status}")
+                        return None
+                        
+        except asyncio.TimeoutError:
+            print("❌ Таймаут при загрузке файла")
+            return None
         except Exception as e:
-            print(f"Error downloading file: {e}")
+            print(f"❌ Ошибка загрузки файла: {e}")
             return None
     
     @staticmethod
@@ -31,19 +44,25 @@ class FileHandler:
         try:
             return Image.open(BytesIO(image_data)).convert('RGB')
         except Exception as e:
-            print(f"Error converting bytes to PIL image: {e}")
+            print(f"❌ Ошибка конвертации в PIL: {e}")
             return None
     
     @staticmethod
-    def pil_to_bytes(image: Image.Image, format: str = 'JPEG') -> Optional[bytes]:
-        """Конвертация PIL Image в bytes"""
+    def pil_to_bytes(image: Image.Image, format: str = 'JPEG', quality: int = None) -> Optional[bytes]:
+        """Конвертация PIL Image в bytes с поддержкой качества"""
         try:
             output_buffer = BytesIO()
-            image.save(output_buffer, format=format, quality=config.image.output_quality)
+            
+            # Устанавливаем качество если передано, иначе используем настройки по умолчанию
+            if quality is not None:
+                image.save(output_buffer, format=format, quality=quality, optimize=True)
+            else:
+                image.save(output_buffer, format=format, quality=config.image.output_quality, optimize=True)
+                
             output_buffer.seek(0)
             return output_buffer.getvalue()
         except Exception as e:
-            print(f"Error converting PIL to bytes: {e}")
+            print(f"❌ Ошибка конвертации в bytes: {e}")
             return None
     
     @staticmethod

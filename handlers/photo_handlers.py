@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 
@@ -47,14 +48,18 @@ async def handle_clothes_photo(message: types.Message, state: FSMContext):
             await UserStates.waiting_for_human_photo.set()
             return
         
-        # Сохраняем фото одежды
+        # Сохраняем фото одежды с обработкой таймаута
         photo = message.photo[-1]
         file_id = photo.file_id
         
+        print(f"📥 Начинаем загрузку файла {file_id}...")
         clothes_photo_data = await file_handler.download_telegram_file(message.bot, file_id)
+        
         if not clothes_photo_data:
-            await message.answer("❌ Не удалось загрузить фото одежды. Попробуйте еще раз.")
+            await message.answer("❌ Не удалось загрузить фото одежды. Файл слишком большой или проблема с интернетом.")
             return
+        
+        print(f"✅ Файл загружен, размер: {len(clothes_photo_data)} байт")
         
         # Валидация изображений
         is_valid, error_message = image_processor.validate_images(
@@ -66,6 +71,7 @@ async def handle_clothes_photo(message: types.Message, state: FSMContext):
             await UserStates.waiting_for_human_photo.set()
             return
         
+        print("🔄 Начинаем обработку изображений...")
         # Обработка изображений
         result_image_data = await image_processor.process_try_on(
             human_photo_data, clothes_photo_data
@@ -76,12 +82,16 @@ async def handle_clothes_photo(message: types.Message, state: FSMContext):
                 photo=result_image_data,
                 caption="🎉 Вот результат примерки!\n\nХотите попробовать еще? Отправьте новое фото человека."
             )
+            print("✅ Обработка завершена успешно")
         else:
             await message.answer("❌ Не удалось обработать фото. Попробуйте с другими изображениями.")
         
         await UserStates.waiting_for_human_photo.set()
         
+    except asyncio.TimeoutError:
+        await message.answer("❌ Превышено время обработки. Попробуйте еще раз.")
+        await UserStates.waiting_for_human_photo.set()
     except Exception as e:
-        logging.error(f"Error handling clothes photo: {e}")
+        print(f"❌ Критическая ошибка: {e}")
         await message.answer("❌ Произошла ошибка при обработке. Попробуйте еще раз.")
         await UserStates.waiting_for_human_photo.set()

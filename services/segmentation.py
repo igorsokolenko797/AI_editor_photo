@@ -6,7 +6,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 class SimpleSegmentation:
-    """Упрощенная сегментация без MediaPipe"""
+    def __init__(self):
+        # Инициализация при необходимости
+        pass
     
     def segment_human(self, image_array: np.ndarray) -> np.ndarray:
         """
@@ -107,3 +109,6 @@ class SimpleSegmentation:
         except Exception as e:
             logger.error(f"Clothes background removal error: {e}")
             return np.ones(image_array.shape[:2], dtype=np.uint8) * 255
+
+# Для совместимости с существующим кодом
+SegmentationService = SimpleSegmentation
